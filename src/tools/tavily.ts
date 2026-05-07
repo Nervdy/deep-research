@@ -1,10 +1,8 @@
-import { tool } from "@langchain/core/tools";
 import { tavily, type TavilyClient } from "@tavily/core";
+import { tool } from "langchain";
 import { z } from "zod";
 import { readRuntimeConfig } from "../config.js";
 import type {
-  TavilyExtractInput,
-  TavilyExtractOutput,
   TavilySearchInput,
   TavilySearchOutput,
   TavilyService,
@@ -15,17 +13,13 @@ export const TavilySearchInputSchema = z.object({
   maxResults: z.number().int().min(1).max(10).optional(),
 });
 
-export const TavilyExtractInputSchema = z.object({
-  urls: z.array(z.string().url()).min(1).max(5),
-});
-
 function truncate(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength).trimEnd()}...`;
 }
 
 export function createTavilyServiceFromClient(
-  client: Pick<TavilyClient, "search" | "extract">,
+  client: Pick<TavilyClient, "search">,
 ): TavilyService {
   return {
     async search(input: TavilySearchInput): Promise<TavilySearchOutput> {
@@ -51,26 +45,6 @@ export function createTavilyServiceFromClient(
         })),
       };
     },
-
-    async extract(input: TavilyExtractInput): Promise<TavilyExtractOutput> {
-      const parsed = TavilyExtractInputSchema.parse(input);
-      const response = await client.extract(parsed.urls, {
-        extractDepth: "basic",
-        format: "markdown",
-      });
-
-      return {
-        results: response.results.map((result) => ({
-          url: result.url,
-          title: result.title ?? undefined,
-          rawContent: truncate(result.rawContent ?? "", 4000),
-        })),
-        failedResults: response.failedResults.map((failed) => ({
-          url: failed.url,
-          error: failed.error,
-        })),
-      };
-    },
   };
 }
 
@@ -83,28 +57,19 @@ export function createTavilyService(apiKey = readRuntimeConfig().tavilyApiKey) {
   return createTavilyServiceFromClient(tavily({ apiKey }));
 }
 
-export function createTavilySearchTool(service: TavilyService) {
+export function createTavilySearchTool(service?: TavilyService | undefined) {
+  let defaultService: TavilyService | undefined = service;
+
   return tool(
-    async (input: TavilySearchInput) =>
-      JSON.stringify(await service.search(input), null, 2),
+    async (input: TavilySearchInput) => {
+      defaultService ??= createTavilyService();
+      return JSON.stringify(await defaultService.search(input), null, 2);
+    },
     {
       name: "tavily_search",
       description:
-        "Search the web with Tavily and return normalized title, URL, snippet, and score results.",
+        "Search the web with Tavily when external or up-to-date information is needed. Returns titles, URLs, snippets, scores, and published dates when available.",
       schema: TavilySearchInputSchema,
-    },
-  );
-}
-
-export function createTavilyExtractTool(service: TavilyService) {
-  return tool(
-    async (input: TavilyExtractInput) =>
-      JSON.stringify(await service.extract(input), null, 2),
-    {
-      name: "tavily_extract",
-      description:
-        "Extract readable page content from URLs returned by Tavily search.",
-      schema: TavilyExtractInputSchema,
     },
   );
 }

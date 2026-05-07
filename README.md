@@ -1,6 +1,6 @@
 # deep-research
 
-Learning-oriented deep research agent built with Bun, TypeScript, LangChain, LangGraph, and Tavily.
+Learning-oriented deep research agent built with Bun, TypeScript, LangChain `createAgent`, and Tavily.
 
 ## Setup
 
@@ -14,9 +14,10 @@ The runtime scripts are written for Bun:
 
 ```sh
 bun run research -- "Compare RAG and long context for enterprise search"
+bun run research -- "Compare RAG and long context" --output-dir output
 bun run studio
 bun test
 bun run typecheck
 ```
 
-`bun run studio` starts the LangGraph local development server for LangSmith Studio. The same graph is used by the CLI and Studio.
+The agent uses LangChain's `createAgent` ReAct loop. It receives a Tavily search tool and a `write_report` tool; the model decides when to search and saves the final Markdown report under `output/` by calling the report tool.

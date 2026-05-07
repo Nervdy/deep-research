@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseCliArgs } from "../src/cli.js";
 
-test("cli parses question and output path", () => {
-  assert.deepEqual(parseCliArgs(["hello", "world", "--out", "report.md"]), {
+test("cli parses question and output directory", () => {
+  assert.deepEqual(parseCliArgs(["hello", "world", "--output-dir", "reports"]), {
     question: "hello world",
-    out: "report.md",
+    outputDir: "reports",
   });
 });
 
